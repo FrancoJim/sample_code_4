@@ -1,0 +1,64 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<flow-definition plugin="workflow-job@2.40">
+    <description></description>
+    <keepDependencies>false</keepDependencies>
+    <properties/>
+    <definition class="org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition" plugin="workflow-cps@2.92">
+        <script>
+        <![CDATA[
+pipeline {
+  agent any
+
+  stages {
+      stage('Pull Code') {
+          steps {
+              echo 'Pulling code...'
+              // Use a script block to ensure commands are executed in the same shell
+              sh '''
+              git clone https://github.com/francojim/sample_code_4.git
+              cd sample_code_4/microservice
+              '''
+          }
+      }
+      stage('Build Docker Image') {
+          steps {
+              echo 'Building Docker image...'
+              // Ensure the Docker build is run in the microservice directory
+              sh '''
+              cd sample_code_4/microservice &&
+              docker build -t francojim/weather-service:latest .
+              '''
+          }
+      }
+      stage('Push Docker Image') {
+          steps {
+              echo 'Pushing Docker image...'
+              // Use single sh block to login and push
+              sh '''
+              docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
+              docker push francojim/weather-service:latest
+              '''
+          }
+      }
+      stage('Deploy to Kubernetes') {
+          steps {
+              echo 'Deploying to Kubernetes...'
+              sh 'kubectl apply -f sample_code_4/microservice/k8s/'
+          }
+      }
+  }
+  post {
+      always {
+          echo 'Cleaning up...'
+          // Single command to remove the cloned directory
+          sh 'rm -rf sample_code_4'
+      }
+  }
+}
+        ]]>
+        </script>
+        <sandbox>true</sandbox>
+    </definition>
+    <triggers/>
+    <disabled>false</disabled>
+</flow-definition>
