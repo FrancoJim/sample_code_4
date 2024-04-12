@@ -45,6 +45,36 @@ graph TD;
     class H users;
 ```
 
+## Automation Steps
+
+1. Setup AWS infrastructure using Terraform.
+2. Install Jenkins on the Kubernetes cluster.
+3. Configure Jenkins to build and deploy the microservice.
+
+- Manual:
+  - Generate API token for Jenkins.
+  - Create credentials for DockerHub.
+  - Create credentials for EKS cluster.
+
+### ToDos
+
+- [x] Verify weather-app deployment works.
+- [ ] Via Jenkins API, create API Credentials and provide to automation Bash script.
+  - [x] Partially automated workaround in place.
+- [ ] Via Jenkins API, configure EKS cluster credentials & DockerHub credentials.
+  - Current workaround is to complete manually)
+- [ ] Create deployment verification script to wait on successful Jenkins job
+- [ ] At end of script, try to see if weather-app URL can be retrieved.
+
+#### Research
+
+- [Remote Access API](https://www.jenkins.io/doc/book/using/remote-access-api/)
+  - Cannot find a way to create any credentials via the API.
+- [jenkinsapi · PyPI](https://pypi.org/project/jenkinsapi/)
+  - Does not have capability to create credentials.
+- [Python Jenkins — Python Jenkins 1.8.0 documentation](https://python-jenkins.readthedocs.io/en/latest/index.html)
+  - Documentation states it can create these artifacts, but it is very involved.
+
 ## Prerequisites
 
 - AWS CLI and configured AWS account access
@@ -55,36 +85,22 @@ graph TD;
 
 ### Automation Scripts
 
-Two scripts automate the setup and deployment process:
+Prep the bash scripts for execution:
 
-- `setup.sh`: Sets up the Kubernetes cluster and installs Jenkins.
-- `deploy_microservice.sh`: Triggers the microservice deployment pipeline in Jenkins.
+```bash
+chmod +x scripts/*.sh
+```
 
 To run the setup script:
 
 ```bash
-chmod +x scripts/*.sh
 ./scripts/setup.sh
-```
-
-To deploy the microservice:
-
-```bash
-./scripts/deploy_microservice.sh
 ```
 
 To clean up the resources:
 
 ```bash
 ./scripts/cleanup_destroy.sh
-```
-
-## Usage
-
-After deployment, the microservice will be accessible through the Kubernetes service URL. You can get the service's external IP using:
-
-```bash
-kubectl get svc weather-service
 ```
 
 ## License

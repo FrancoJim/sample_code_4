@@ -1,0 +1,47 @@
+<flow-definition plugin="workflow-job@2.40">
+  <description></description>
+  <keepDependencies>false</keepDependencies>
+  <properties />
+  <definition class="org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition"
+    plugin="workflow-cps@2.92">
+    <script>
+          <![CDATA[
+pipeline {
+  agent any
+  environment {
+      REPO_URL = 'https://github.com/francojim/sample_code_4.git'
+      IMAGE_NAME = 'theneedful/sample_code_4'
+  }
+  stages {
+      stage('Pull Code') {
+          steps {
+              echo 'Pulling code...'
+              sh '''
+              git clone ${REPO_URL}
+              cd sample_code_4/microservice
+              '''
+          }
+      }
+      stage('Deploy to Kubernetes') {
+          steps {
+              echo 'Deploying to Kubernetes...'
+              withKubeConfig(credentialsId: 'user1', serverUrl: 'https://api.k8s.my-company.com') {
+                  sh 'kubectl apply -k sample_code_4/microservice/k8s/'
+              }
+          }
+      }
+  }
+  post {
+      always {
+          echo 'Cleaning up...'
+          sh 'rm -rf sample_code_4'
+      }
+  }
+}       
+          ]]>
+      </script>
+    <sandbox>true</sandbox>
+  </definition>
+  <triggers />
+  <disabled>false</disabled>
+</flow-definition>

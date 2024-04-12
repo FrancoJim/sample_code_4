@@ -11,6 +11,7 @@ spec:
       app: jenkins
   template:
     metadata:
+      name: jenkins-pod
       labels:
         app: jenkins
     spec:

@@ -1,64 +1,79 @@
-<?xml version='1.0' encoding='UTF-8'?>
 <flow-definition plugin="workflow-job@2.40">
-    <description></description>
-    <keepDependencies>false</keepDependencies>
-    <properties/>
-    <definition class="org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition" plugin="workflow-cps@2.92">
-        <script>
-        <![CDATA[
+  <description></description>
+  <keepDependencies>false</keepDependencies>
+  <properties />
+  <definition class="org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition"
+    plugin="workflow-cps@2.92">
+    <script>
+          <![CDATA[
 pipeline {
   agent any
+  tools {
+    // a bit ugly because there is no `@Symbol` annotation for the DockerTool
+    // see the discussion about this in PR 77 and PR 52: 
+    // https://github.com/jenkinsci/docker-commons-plugin/pull/77#discussion_r280910822
+    // https://github.com/jenkinsci/docker-commons-plugin/pull/52
+    'org.jenkinsci.plugins.docker.commons.tools.DockerTool' '18.09'
+  }
+  environment {
+      REPO_URL = 'https://github.com/francojim/sample_code_4.git'
+      IMAGE_NAME = 'theneedful/sample_code_4'
+      DOCKER_CERT_PATH = credentials('id-for-a-docker-cred')
+  }
 
   stages {
       stage('Pull Code') {
           steps {
               echo 'Pulling code...'
-              // Use a script block to ensure commands are executed in the same shell
               sh '''
-              git clone https://github.com/francojim/sample_code_4.git
+              git clone ${REPO_URL}
               cd sample_code_4/microservice
+              docker version
               '''
           }
       }
       stage('Build Docker Image') {
           steps {
-              echo 'Building Docker image...'
-              // Ensure the Docker build is run in the microservice directory
-              sh '''
-              cd sample_code_4/microservice &&
-              docker build -t francojim/weather-service:latest .
-              '''
-          }
+              script {
+                  // Change directory to where the Dockerfile is located
+                  dir('sample_code_4/microservice') {
+                      // Building the Docker image from Dockerfile
+                      docker.build(IMAGE_NAME)
+                  }
+              }
+          }   
       }
       stage('Push Docker Image') {
           steps {
               echo 'Pushing Docker image...'
-              // Use single sh block to login and push
-              sh '''
-              docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
-              docker push francojim/weather-service:latest
-              '''
+              script {
+                  // Assuming credentials are configured in Jenkins for Docker registry login
+                  docker.withRegistry('https://index.docker.io/v1/', 'docker-registry-credentials') {
+                      docker.image(IMAGE_NAME).push()
+                  }
+              }
           }
       }
       stage('Deploy to Kubernetes') {
           steps {
               echo 'Deploying to Kubernetes...'
-              sh 'kubectl apply -f sample_code_4/microservice/k8s/'
+              withKubeConfig(credentialsId: 'user1', serverUrl: 'https://api.k8s.my-company.com') {
+                  sh 'kubectl apply -k sample_code_4/microservice/k8s/'
+              }
           }
       }
   }
   post {
       always {
           echo 'Cleaning up...'
-          // Single command to remove the cloned directory
           sh 'rm -rf sample_code_4'
       }
   }
-}
-        ]]>
-        </script>
-        <sandbox>true</sandbox>
-    </definition>
-    <triggers/>
-    <disabled>false</disabled>
+}       
+          ]]>
+      </script>
+    <sandbox>true</sandbox>
+  </definition>
+  <triggers />
+  <disabled>false</disabled>
 </flow-definition>

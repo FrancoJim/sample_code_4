@@ -2,8 +2,9 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: weather-service
+  namespace: weather-service
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: weather-service
@@ -14,10 +15,13 @@ spec:
     spec:
       containers:
         - name: weather-service
-          image: weather-service:latest
+          image: theneedful/sample_code_4:latest
           resources:
+            requests:
+              cpu: "500m"
+              memory: "256Mi"
             limits:
-              cpu: "1"
-              memory: "500Mi"
+              cpu: "1000m"
+              memory: "512Mi"
           ports:
             - containerPort: 5000
