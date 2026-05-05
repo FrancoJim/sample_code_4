@@ -1,0 +1,110 @@
+pipeline {
+    // Each build runs in a fresh K8s pod. Three containers:
+    //   docker  — Docker CLI, talks to the DinD sidecar
+    //   dind    — Docker daemon (privileged)
+    //   deploy  — AWS CLI + kubectl via alpine/k8s for the deploy stage
+    agent {
+        kubernetes {
+            yaml '''
+apiVersion: v1
+kind: Pod
+spec:
+  serviceAccountName: jenkins
+  containers:
+  - name: docker
+    image: docker:27-cli
+    command: [sleep, infinity]
+    env:
+    - name: DOCKER_HOST
+      value: tcp://localhost:2375
+  - name: dind
+    image: docker:27-dind
+    securityContext:
+      privileged: true
+    env:
+    - name: DOCKER_TLS_CERTDIR
+      value: ""
+  - name: deploy
+    image: alpine/k8s:1.29.2
+    command: [sleep, infinity]
+'''
+        }
+    }
+
+    environment {
+        DOCKERHUB_CREDENTIALS = credentials('dockerhub-credentials')
+        IMAGE_NAME            = "${DOCKERHUB_CREDENTIALS_USR}/sample_code_4"
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Test') {
+            steps {
+                container('docker') {
+                    sh '''
+                        docker run --rm \
+                            -v "$(pwd)/microservice/src:/app" \
+                            -w /app \
+                            python:3.12-slim \
+                            sh -c "pip install -q -r requirements.txt && python -m pytest test_app.py -v"
+                    '''
+                }
+            }
+        }
+
+        stage('Build & Push') {
+            steps {
+                container('docker') {
+                    sh '''
+                        echo "${DOCKERHUB_CREDENTIALS_PSW}" \
+                            | docker login -u "${DOCKERHUB_CREDENTIALS_USR}" --password-stdin
+                        docker build \
+                            -t "${IMAGE_NAME}:${BUILD_NUMBER}" \
+                            -t "${IMAGE_NAME}:latest" \
+                            microservice/
+                        docker push "${IMAGE_NAME}:${BUILD_NUMBER}"
+                        docker push "${IMAGE_NAME}:latest"
+                    '''
+                }
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                container('deploy') {
+                    // IRSA provides AWS credentials via the pod's service account
+                    // annotation — no static keys needed.
+                    sh '''
+                        aws eks update-kubeconfig \
+                            --region  "${AWS_REGION}" \
+                            --name    "${EKS_CLUSTER_NAME}"
+                        kubectl set image deployment/weather-service \
+                            weather-service="${IMAGE_NAME}:${BUILD_NUMBER}" \
+                            -n weather-service
+                        kubectl rollout status deployment/weather-service \
+                            -n weather-service --timeout=120s
+                    '''
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            container('docker') {
+                sh 'docker logout || true'
+            }
+        }
+        success {
+            echo "Deployed ${IMAGE_NAME}:${BUILD_NUMBER} successfully."
+        }
+        failure {
+            echo "Pipeline failed — check stage logs above."
+        }
+    }
+}

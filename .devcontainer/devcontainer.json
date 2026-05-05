@@ -1,0 +1,57 @@
+{
+  "name": "sample_code_4",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "workspace",
+  "workspaceFolder": "/workspace",
+  "remoteUser": "vscode",
+
+  // Tear down all compose services when the devcontainer window closes.
+  "shutdownAction": "stopCompose",
+
+  // One-time setup after the container is created (installs Python deps, etc.)
+  "postCreateCommand": "bash /workspace/.devcontainer/scripts/post-create.sh",
+
+  // Forward LocalStack and the local registry so host tooling can reach them.
+  "forwardPorts": [4566, 5000],
+  "portsAttributes": {
+    "4566": { "label": "LocalStack", "onAutoForward": "silent" },
+    "5000": { "label": "Local Registry", "onAutoForward": "silent" }
+  },
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        // Infrastructure
+        "hashicorp.terraform",
+        "amazonwebservices.aws-toolkit-vscode",
+        "ms-kubernetes-tools.vscode-kubernetes-tools",
+        "ms-azuretools.vscode-docker",
+        // Python
+        "ms-python.python",
+        "ms-python.pylint",
+        "ms-python.black-formatter",
+        // Authoring
+        "redhat.vscode-yaml",
+        "timonwong.shellcheck",
+        "foxundermoon.shell-format",
+        // Git / productivity
+        "eamodio.gitlens",
+        "mhutchie.git-graph"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "terminal.integrated.profiles.linux": {
+          "bash": { "path": "/bin/bash", "args": ["-l"] }
+        },
+        "python.defaultInterpreterPath": "/workspace/.venv/bin/python",
+        "python.terminal.activateEnvironment": true,
+        "[terraform]": {
+          "editor.formatOnSave": true,
+          "editor.defaultFormatter": "hashicorp.terraform"
+        },
+        "editor.formatOnSave": true,
+        "files.trimTrailingWhitespace": true
+      }
+    }
+  }
+}
