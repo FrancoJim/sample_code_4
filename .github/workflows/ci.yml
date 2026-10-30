@@ -57,6 +57,9 @@ jobs:
     needs: [app, infra]
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      # Publish only on pushes to main, and only once Docker Hub secrets are configured
+      PUBLISH: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' && secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' }}
     steps:
       - uses: actions/checkout@v7
 
@@ -70,16 +73,19 @@ jobs:
           curl -fsS http://localhost:5000/health | grep -q '"ok"'
           docker rm -f ws
 
-      # Only push on commits to main, not on PRs
+      - name: Note skipped publish
+        if: env.PUBLISH != 'true' && github.event_name == 'push'
+        run: echo "::notice::Image built and smoke-tested; not pushed because DOCKERHUB_USERNAME / DOCKERHUB_TOKEN secrets are not set."
+
       - name: Log in to Docker Hub
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        if: env.PUBLISH == 'true'
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Extract image metadata
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        if: env.PUBLISH == 'true'
         id: meta
         uses: docker/metadata-action@v5
         with:
@@ -89,7 +95,7 @@ jobs:
             type=raw,value=latest
 
       - name: Build and push
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        if: env.PUBLISH == 'true'
         uses: docker/build-push-action@v6
         with:
           context: ./microservice
