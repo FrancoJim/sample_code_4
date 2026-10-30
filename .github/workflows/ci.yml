@@ -87,7 +87,7 @@ jobs:
       - name: Extract image metadata
         if: env.PUBLISH == 'true'
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ${{ secrets.DOCKERHUB_USERNAME }}/sample_code_4
           tags: |
