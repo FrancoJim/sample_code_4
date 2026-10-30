@@ -47,12 +47,13 @@ provider "kubernetes" {
   }
 }
 
+# Helm provider v3: `kubernetes` and `exec` are attributes (object syntax), not blocks.
 provider "helm" {
-  kubernetes {
+  kubernetes = {
     host                   = module.eks.cluster_endpoint
     cluster_ca_certificate = base64decode(module.eks.cluster_ca_data)
 
-    exec {
+    exec = {
       api_version = "client.authentication.k8s.io/v1beta1"
       command     = "aws"
       args = [
