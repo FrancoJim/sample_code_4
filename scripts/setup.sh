@@ -1,8 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
-# Navigate to repo root regardless of where the script is called from
-while [ ! -f "LICENSE" ]; do cd ..; done
+# Run from the repo root regardless of where the script is called from
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
 if [ ! -f "infrastructure/terraform.tfvars" ]; then
     echo "ERROR: infrastructure/terraform.tfvars not found."

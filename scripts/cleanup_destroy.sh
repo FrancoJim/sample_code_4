@@ -1,7 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
-while [ ! -f "LICENSE" ]; do cd ..; done
+# Run from the repo root regardless of where the script is called from
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
 cd infrastructure
 

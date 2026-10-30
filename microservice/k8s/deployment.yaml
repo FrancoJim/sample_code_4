@@ -13,18 +13,36 @@ spec:
       labels:
         app: weather-service
     spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: weather-service
           image: theneedful/sample_code_4:latest
           ports:
             - containerPort: 5000
+          # Sized so HPA max (3) plus one rolling-update surge pod fits the
+          # namespace ResourceQuota: 4 x 100m = 400m CPU requests (quota 1),
+          # 4 x 500m = 2 CPU limits (quota 2).
           resources:
             requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
               cpu: "500m"
               memory: "256Mi"
-            limits:
-              cpu: "1000m"
-              memory: "512Mi"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
           livenessProbe:
             httpGet:
               path: /health
@@ -39,3 +57,6 @@ spec:
             initialDelaySeconds: 5
             periodSeconds: 10
             failureThreshold: 3
+      volumes:
+        - name: tmp
+          emptyDir: {}

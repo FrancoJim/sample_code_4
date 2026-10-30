@@ -1,7 +1,7 @@
-import requests
-import pytest
 from unittest.mock import Mock, patch
 
+import pytest
+import requests
 from app import app
 
 

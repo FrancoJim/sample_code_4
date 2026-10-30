@@ -131,15 +131,15 @@ resource "kubernetes_role_binding" "jenkins_deployer" {
 # ── Jenkins Helm release ──────────────────────────────────────────────────────
 
 resource "helm_release" "jenkins" {
-  name             = var.helm_release_name
-  repository       = "https://charts.jenkins.io"
-  chart            = "jenkins"
-  version          = var.helm_chart_version
-  namespace        = kubernetes_namespace.jenkins.metadata[0].name
-  timeout          = 600
-  wait             = true
-  cleanup_on_fail  = true
-  recreate_pods    = false
+  name            = var.helm_release_name
+  repository      = "https://charts.jenkins.io"
+  chart           = "jenkins"
+  version         = var.helm_chart_version
+  namespace       = kubernetes_namespace.jenkins.metadata[0].name
+  timeout         = 600
+  wait            = true
+  cleanup_on_fail = true
+  recreate_pods   = false
 
   values = [
     templatefile("${path.module}/helm-values.yaml.tpl", {

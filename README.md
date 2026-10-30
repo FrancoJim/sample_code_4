@@ -1,6 +1,27 @@
 # Weather Service — EKS + Jenkins + Terraform
 
+[![CI](https://github.com/FrancoJim/sample_code_4/actions/workflows/ci.yml/badge.svg)](https://github.com/FrancoJim/sample_code_4/actions/workflows/ci.yml)
+
 End-to-end infrastructure automation for a containerized microservice. A single `terraform apply` provisions an EKS cluster, deploys Jenkins via Helm, and configures the full CI/CD pipeline — no manual steps, no stored credentials.
+
+## Highlights
+
+- **One `terraform apply`** stands up VPC, EKS, IRSA, EBS CSI and a fully configured Jenkins (JCasC); no click-ops
+- **No static cloud keys**: Jenkins authenticates to AWS with IRSA; K8s RBAC scoped to one namespace
+- **Hardened workload**: non-root (UID 10001), read-only root filesystem, all capabilities dropped, seccomp, gunicorn; requests sized so HPA max + rolling-update surge fit the namespace quota
+- **Every layer is checked in CI** without cloud credentials: ruff + pytest, `terraform fmt`/`validate` against a committed lock file, kustomize + kubeconform (strict), shellcheck, hadolint, actionlint-clean workflow, image build + smoke test
+- **Dependabot** for pip, Docker, Terraform providers and GitHub Actions
+
+## Quick start
+
+```bash
+make              # list every task
+make check        # app lint + tests, terraform validate, kubeconform, shellcheck, hadolint
+make docker-run   # build and run the service image at http://localhost:5000
+make deploy       # real AWS: terraform apply EKS + Jenkins (needs credentials; costs money)
+```
+
+Infra checks run in pinned containers, so only Docker and Python 3 are needed locally.
 
 ## Architecture
 
@@ -34,7 +55,7 @@ graph TD
 | IaC | Terraform 1.6+ — modular layout with remote-state config |
 | Auth | IRSA (IAM Roles for Service Accounts) — no static AWS credentials in pods |
 | CI/CD | Jenkins on K8s (Helm-managed, JCasC) + GitHub Actions |
-| App | Python / Flask — Dockerized, with `/health` probe and pytest suite |
+| App | Python 3.14 / Flask on gunicorn — non-root image, `/health` probe, pytest suite |
 | K8s | Deployment, Service, HPA, ResourceQuota, liveness/readiness probes |
 | Dev environment | Devcontainer — Ubuntu 24.04, all CLI tools, LocalStack, local registry |
 
@@ -66,14 +87,17 @@ graph TD
 │   ├── src/
 │   │   ├── app.py               Flask app — /health + / with error handling
 │   │   ├── test_app.py          pytest suite (success, timeout, API errors)
-│   │   └── requirements.txt
+│   │   ├── requirements.txt     pinned runtime deps
+│   │   └── requirements-dev.txt pytest, ruff
 │   ├── k8s/                     Deployment, Service, HPA, ResourceQuota
 │   └── Dockerfile
+├── Makefile                     make help: local, Docker and infra-check targets
 ├── ci-cd/
 │   └── Jenkinsfile              Declarative pipeline — K8s pod agents,
 │                                Docker-in-Docker build, IRSA deploy
 └── .github/
-    └── workflows/ci.yml         GitHub Actions — test on PR, push image on merge
+    ├── workflows/ci.yml         GitHub Actions — app + infra checks, image smoke test, push on merge
+    └── dependabot.yml
 ```
 
 ## Development Environment
@@ -157,11 +181,9 @@ The script runs `terraform apply`, then updates your local kubeconfig. After it 
 ## Local Development
 
 ```bash
-# Run the Flask app
-python microservice/src/app.py   # respects $PORT, defaults to 5000
-
-# Run tests
-pytest microservice/src/test_app.py -v
+make run     # Flask app on http://localhost:5000 (respects PORT=)
+make test    # pytest with coverage; the Open-Meteo API is mocked
+make lint    # ruff
 ```
 
 ## Tear Down

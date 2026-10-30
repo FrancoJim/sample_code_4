@@ -8,8 +8,7 @@ app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 
 WEATHER_API_URL = (
-    "https://api.open-meteo.com/v1/forecast"
-    "?latitude=38.895&longitude=-77.0366&current_weather=true"
+    "https://api.open-meteo.com/v1/forecast?latitude=38.895&longitude=-77.0366&current_weather=true"
 )
 
 
