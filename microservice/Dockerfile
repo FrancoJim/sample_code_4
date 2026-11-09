@@ -1,4 +1,4 @@
-FROM python:3.14-slim
+FROM python:3.15-slim
 LABEL org.opencontainers.image.source="https://github.com/FrancoJim/sample_code_4"
 LABEL org.opencontainers.image.licenses="MIT"
 
