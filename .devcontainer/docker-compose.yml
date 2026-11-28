@@ -1,0 +1,92 @@
+name: sample_code_4
+
+services:
+
+  # ── Main development workspace ───────────────────────────────────────────────
+  workspace:
+    build:
+      # Context is the repo root so the Dockerfile can COPY project files.
+      context: ..
+      dockerfile: .devcontainer/Dockerfile
+    container_name: sample_code_4_workspace
+    hostname: sample_code_4
+    volumes:
+      # Repo mount — :cached gives a meaningful perf boost on macOS
+      - ../:/workspace:cached
+      # OrbStack docker socket — gives the container access to the host daemon
+      # so `docker build`, `docker push`, etc. work without a nested daemon.
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Persist bash history across container rebuilds
+      - workspace_bash_history:/home/vscode/.bash_history_dir
+    environment:
+      # Pass through host AWS credentials if present, so `aws` and `terraform`
+      # work against real AWS without re-configuring inside the container.
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
+      - AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN:-}
+      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1}
+      # LocalStack endpoint — Terraform provider can be pointed here for local
+      # dev by setting endpoints{} in a provider override file.
+      - LOCALSTACK_ENDPOINT=http://localstack:4566
+      # Local registry — push images here instead of DockerHub during development
+      - LOCAL_REGISTRY=registry:5000
+    networks:
+      - devnet
+    depends_on:
+      localstack:
+        condition: service_healthy
+      registry:
+        condition: service_started
+    # Keep the container alive; devcontainer tooling attaches to this process.
+    command: sleep infinity
+    stdin_open: true
+    tty: true
+
+  # ── LocalStack — local AWS emulation ─────────────────────────────────────────
+  # Supports: S3 (Terraform remote state), DynamoDB (state lock), IAM, STS,
+  # EC2, and many more services on the Community tier.
+  # Note: EKS requires LocalStack Pro. Set LOCALSTACK_AUTH_TOKEN to unlock it.
+  localstack:
+    image: localstack/localstack:3
+    container_name: sample_code_4_localstack
+    ports:
+      - "4566:4566"   # unified endpoint
+    environment:
+      - SERVICES=s3,dynamodb,iam,sts,ec2,eks
+      - DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1}
+      - DOCKER_HOST=unix:///var/run/docker.sock
+      - LOCALSTACK_AUTH_TOKEN=${LOCALSTACK_AUTH_TOKEN:-}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - localstack_data:/var/lib/localstack
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:4566/_localstack/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    networks:
+      - devnet
+
+  # ── Local Docker registry ─────────────────────────────────────────────────────
+  # Push images here during development to avoid DockerHub rate limits and
+  # keep build/test loops fast. Access from inside the workspace as registry:5000.
+  # Example: docker build -t registry:5000/sample_code_4:dev . && docker push registry:5000/sample_code_4:dev
+  registry:
+    image: registry:2
+    container_name: sample_code_4_registry
+    ports:
+      - "5000:5000"
+    volumes:
+      - registry_data:/var/lib/registry
+    networks:
+      - devnet
+
+volumes:
+  localstack_data:
+  registry_data:
+  workspace_bash_history:
+
+networks:
+  devnet:
+    driver: bridge

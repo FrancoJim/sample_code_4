@@ -1,0 +1,17 @@
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.ruff_cache
+.coverage
+src/test_*.py
+src/requirements-dev.txt
+k8s
+.env
+.env.*
+*.pem
+*.key
+*credentials*.json
+*service-account*.json
+*serviceaccount*.json
+*.tfvars
+*.tfvars.json

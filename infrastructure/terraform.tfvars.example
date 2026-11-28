@@ -1,0 +1,15 @@
+aws_region         = "us-east-1"
+cluster_name       = "sample-eks-cluster"
+vpc_cidr           = "10.0.0.0/16"
+node_instance_type = "t3.large"
+node_desired_size  = 2
+node_max_size      = 3
+node_min_size      = 1
+
+# Sensitive values — prefer environment variables in CI:
+#   export TF_VAR_dockerhub_username="your-username"
+#   export TF_VAR_dockerhub_password="your-access-token"
+dockerhub_username = ""
+dockerhub_password = ""
+
+github_repo_url = "https://github.com/your-org/your-repo.git"
